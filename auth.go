@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"golang.org/x/oauth2"
 )
 
 // auth is implemented by an SMTP authentication mechanism.
@@ -141,5 +143,32 @@ func (a *cramMD5Auth) next(fromServer []byte, more bool) ([]byte, error) {
 		s := make([]byte, 0, d.Size())
 		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
 	}
+	return nil, nil
+}
+
+type xoauth2Auth struct {
+	user  string
+	token *oauth2.Token
+}
+
+func xoauth2Authfn(username string, token *oauth2.Token) auth {
+	return &xoauth2Auth{
+		user:  username,
+		token: token,
+	}
+}
+
+func (a *xoauth2Auth) start(server *serverInfo) (string, []byte, error) {
+	if !server.tls {
+		return "", nil, errors.New("server must use a TLS connection")
+	}
+	return "XOAUTH2", []byte(fmt.Sprintf("user=%v\001auth=%v %v\001\001", a.user, a.token.TokenType, a.token.AccessToken)), nil
+}
+
+func (a *xoauth2Auth) next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		return nil, errors.New("nothing more to say")
+	}
+
 	return nil, nil
 }

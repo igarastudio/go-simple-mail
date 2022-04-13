@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/toorop/go-dkim"
+	"golang.org/x/oauth2"
 )
 
 // Email represents an email message.
@@ -41,6 +42,7 @@ type SMTPServer struct {
 	Encryption     Encryption
 	Username       string
 	Password       string
+	Token          *oauth2.Token
 	Helo           string
 	ConnectTimeout time.Duration
 	SendTimeout    time.Duration
@@ -131,6 +133,8 @@ const (
 	AuthLogin
 	// AuthCRAMMD5 implements the CRAM-MD5 authentication
 	AuthCRAMMD5
+	// AuthXOAUTH2 implements the XOAUTH2 authentication
+	AuthXOAUTH2
 	// AuthNone for SMTP servers without authentication
 	AuthNone
 )
@@ -774,6 +778,10 @@ func (server *SMTPServer) Connect() (*SMTPClient, error) {
 	case AuthCRAMMD5:
 		if server.Username != "" || server.Password != "" {
 			a = cramMD5Authfn(server.Username, server.Password)
+		}
+	case AuthXOAUTH2:
+		if server.Username != "" || server.Token != nil {
+			a = xoauth2Authfn(server.Username, server.Token)
 		}
 	}
 
